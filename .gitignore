@@ -3,13 +3,4 @@ decoded
 *.pdf
 *.txt
 *.jpg
-utils_tr.py
-decoder_tr.py
-encoder_tr.py
 __pycache__/
-prueba.py
-basurilla.py
-Assignment_1_Pablo_Picallo_Lopez/
-getSets.py
-main.py
-reedsolomon.py

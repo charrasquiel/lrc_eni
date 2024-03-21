@@ -1,6 +1,7 @@
 import numpy as np
 import galois
-import json
+from tqdm import tqdm
+import time
 import os
 import math
 
@@ -10,7 +11,7 @@ def get_sets(modulo, num_subsets, GF):
     sets = []
 
     f = galois.Poly([1,0,0,0], field=GF)
-    for i in range(modulo):
+    for i in tqdm(range(modulo)):
         sets.append(f(int(i)))
     count_map = {} # {num: [posiciones]}
     for i, num in enumerate(sets):
@@ -32,90 +33,144 @@ def get_sets(modulo, num_subsets, GF):
 def encode(n, k, subsets, message, p, GF):
     """Codificador"""
     encoded_msg = []
+    shards = {}
 
     # Igualamos el mensaje
     while len(message) % k != 0:
         message.append(0)
-
-    for l in range(0, len(message), k):
+    print("Codificando...")
+    for l in tqdm(range(0, len(message), k)):
         for i in subsets:
             for j in i.values():
-                for m in j: # Evalúa cada número de cada set
+                for index, m in enumerate(j): # Evalúa cada número de cada set
                     a = message[l:l+k]
                     a00 = a[0]
                     a01 = a[1]
                     a10 = a[2]
                     a11 = a[3]
                     fx = galois.Poly([a00, a01, 0, a10, a11], field=GF)
-                    encoded_msg.append(fx(m))
-    return encoded_msg
+                    if m not in shards:
+                        shards[m] = [fx(m)]  
+                    else:
+                        shards[m].append(fx(m))
+    return encoded_msg, shards
 
 ## DECODER
 def decode(n, k, encoded_msg, subsets, GF):
     """Decodificador"""
     decoded_msg = []
     
-    f1 = galois.Poly([1, 0, 0, 0, 0], field=GF)
-    f2 = galois.Poly([0, 1, 0, 0, 0], field=GF)
-    f3 = galois.Poly([0, 0, 0, 1, 0], field=GF)
-    f4 = galois.Poly([0, 0, 0, 0, 1], field=GF)
+    fd = [galois.Poly([1, 0, 0, 0, 0], field=GF),
+        galois.Poly([0, 1, 0, 0, 0], field=GF),
+        galois.Poly([0, 0, 0, 1, 0], field=GF),
+        galois.Poly([0, 0, 0, 0, 1], field=GF)]
 
     m = []
 
     ## Posiciones 0, 1, 3 y 6
     ## OJO: Deben coincidir con las decodificadas abajo!!!
     for num in [list(subsets[0].values())[0][0], list(subsets[0].values())[0][1], list(subsets[1].values())[0][0], list(subsets[2].values())[0][0]]:
-        row = [f1(num), f2(num), f3(num), f4(num)]
+        row = [fd[0](num), fd[1](num), fd[2](num), fd[3](num)]
         m.append(row)
 
     x_data = GF(m)
-
-    for i in range(0, len(encoded_msg), n):
+    print("Decodificando...")
+    for i in tqdm(range(0, len(encoded_msg), n)):
         msg = encoded_msg[i:i+n]
         ## OJO: Deben coincidir con las posiciones de arriba!!
         y_data = GF([msg[0], msg[1], msg[3], msg[6]])
-
         # Calcular los coeficientes
         A = np.linalg.solve(x_data, y_data)
         decoded_msg += [int(j) for j in A]
 
     return decoded_msg
 
+## RECOVERY
+def recover(n, k, subsets, GF, pos, readed_msg):
+    recovered_shard = []
+    x_recover = []
+    y_first = []
+    y_second = []
+
+    related_pos = {0: [1, 2, 0], 1: [0, 2, 0], 2: [0, 1, 0],
+                3: [4, 5, 1], 4: [3, 5, 1], 5: [3, 4, 1],
+                6: [7, 8, 2], 7: [6, 8, 2], 8: [6, 7, 2]}
+    
+
+    evaluate_in = related_pos.get(pos)
+    recov_pos = list(subsets[int(evaluate_in[2])].values())[0]
+    x_recover.append([recov_pos[evaluate_in[0]%3],1])
+    x_recover.append([recov_pos[evaluate_in[1]%3],1])
+    x_data = GF(x_recover)
+
+    y_first.extend(readed_msg[evaluate_in[0]])
+    y_second.extend(readed_msg[evaluate_in[1]])
+
+    for i, number in enumerate(y_first):
+        y_data = GF([y_first[i], y_second[i]])
+
+        AB = np.linalg.solve(x_data, y_data)
+        fd = galois.Poly(AB, field=GF)
+        sol = fd(recov_pos[pos%3])
+        recovered_shard.append(int(sol))
+    return recovered_shard
+
+def get_message(n, k, subsets, GF):
+    ordered_msg = []
+    full_msg = []
+    readed_msg, ereased_shards = get_shards("shards")
+    coded_msg = []
+    ## Conseguir el mensaje primero para poder recuperar los borrados
+    for i in range(0, 9, 1):
+        if i in ereased_shards:
+            coded_msg.append([i])
+        else:
+            coded_msg.append(readed_msg[i])
+    
+    ## Recuperar y conseguir el mensaje general
+    for m in range(0, 9, 1):
+        if m in ereased_shards:
+            full_msg.extend(recover(n, k, subsets, GF, m, readed_msg))
+        else:
+            full_msg.extend(coded_msg[m])
+
+    ## Se leen los shards ordenados con lo que ahora hay que organizarlos para la decodificación
+    for k in range(int(len(full_msg)/n)):
+        for i in range(0, len(full_msg), int(len(full_msg)/n)):
+            ordered_msg.append(full_msg[i+k])
+        
+    return ordered_msg
+
+
 ## SHARDS
 def get_shards(directorio):
     shards = []
-    for filename in os.listdir(directorio):
-        print(filename)
-        if filename.endswith(".shard"):
-            shard_path = os.path.join(directorio, filename)
+    ereased = []
+    print("Recuperando datos...")
+    for i in tqdm(range(0, 9, 1)):
+        filename = f'shard_{i}.shard'
+        shards.append([i])
+        shard_path = os.path.join(directorio, filename)
+        if os.path.exists(shard_path):
             # Leer el fichero
             with open(shard_path, "rb") as file:
-                shards.append(bytearray(file.read()))
-    array_recuperado = []
-    for shard in shards:
-        array_recuperado.extend(shard)
-    return array_recuperado
+                shards[i] = bytearray(file.read())
+        else:
+            ereased.append(i)
+    return shards, ereased
 
 
-def set_shards(array_codificado, num_shards):
-    # Calcula el tamaño aproximado de cada shard
-    shard_size = math.ceil(len(array_codificado) / num_shards)
-    print(shard_size)
-    inicio = 0
-    
+def set_shards(coded_shards):
     directorio_salida = 'shards'
     # Crea el directorio de salida si no existe
     if not os.path.exists(directorio_salida):
         os.makedirs(directorio_salida)
     
-    for i in range(num_shards):
-        fin = min(inicio + shard_size, len(array_codificado))
-        shard = array_codificado[inicio:fin]
+    for i, key in enumerate(coded_shards.keys()):
         shard_path = os.path.join(directorio_salida, f"shard_{i}.shard")
         # Write the bytes to a file
         with open(shard_path, "wb") as file:
-            file.write(bytearray(shard))
-        inicio = fin
+            file.write(bytearray(coded_shards[key]))
 
 def check_shards_folder(folder):
     if not os.path.exists(folder):
@@ -150,30 +205,33 @@ if __name__ == "__main__":
     print("Sets empleados: %s" % subsets)
 
     check_shards_folder("shards")
+    readed = False
+    while readed != True:
+        filename = input("Fichero a codificar: ").strip().lower()
+        try:
+            # Leer el fichero
+            with open(filename, "rb") as file:
+                message = bytearray(file.read())
+                readed = True
+        except:
+            print("No existe ese fichero.")
 
-    filename = input("Fichero a codificar: ").strip().lower()
-
-    # Leer el fichero
-    with open(filename, "rb") as file:
-        message = bytearray(file.read())
     len_msg = len(message)
-            
-    #print("Mensaje: %s" % message)
     # Codificación
-    encoded_msg = encode(n, k, subsets, message, p, GF)
-    print("Codificado.")
-    set_shards(encoded_msg, n)
+    
+    encoded_msg, shards = encode(n, k, subsets, message, p, GF)
+    print("Fichero codificado.")
+    set_shards(shards)
 
     #############################################
-    print("Ahora puedes borrar hasta dos shards.")
+    print("Ahora puedes borrar shards.")
     input("Pulsa cualquier letra para continuar con la decodificación: ").strip().lower()
     # Decode
-    coded_msg = get_shards("shards")
-    #TODO: recuperación de errores
+    coded_msg = get_message(n, k, subsets, GF)
 
     # Decodificación
     decoded_msg = decode(n, k, coded_msg, subsets, GF)
-    print("Decodificado.")
+    print("Fichero decodificado.")
 
     filename = input("Nombre que le quieres dar al fichero recuperado: ").strip().lower()
     
@@ -189,5 +247,5 @@ if __name__ == "__main__":
     with open(f'{folder}/{filename}', "wb") as archivo:
         write_bytes = bytes(''.join([chr(x) for x in decoded_msg]), encoding="raw_unicode_escape")
         archivo.write(write_bytes[:len_msg])
-        print("Se ha almacenado en la carpeta 'decoded'.")
+        print(f"Se ha almacenado el fichero '{filename}' en la carpeta 'decoded'.")
 
