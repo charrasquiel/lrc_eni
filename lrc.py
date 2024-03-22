@@ -3,7 +3,8 @@ import galois
 from tqdm import tqdm
 import time
 import os
-import math
+import csv
+
 
 ## SUBCONJUNTOS
 def get_sets(modulo, num_subsets, GF):
@@ -67,7 +68,7 @@ def decode(n, k, encoded_msg, subsets, GF):
 
     m = []
 
-    ## Posiciones 0, 1, 3 y 6
+    ## Posiciones 0, 1, 3 y 6, por ejemplo, podrían variar
     ## OJO: Deben coincidir con las decodificadas abajo!!!
     for num in [list(subsets[0].values())[0][0], list(subsets[0].values())[0][1], list(subsets[1].values())[0][0], list(subsets[2].values())[0][0]]:
         row = [fd[0](num), fd[1](num), fd[2](num), fd[3](num)]
@@ -77,6 +78,7 @@ def decode(n, k, encoded_msg, subsets, GF):
     print("Decodificando...")
     for i in tqdm(range(0, len(encoded_msg), n)):
         msg = encoded_msg[i:i+n]
+
         ## OJO: Deben coincidir con las posiciones de arriba!!
         y_data = GF([msg[0], msg[1], msg[3], msg[6]])
         # Calcular los coeficientes
@@ -92,6 +94,7 @@ def recover(n, k, subsets, GF, pos, readed_msg):
     y_first = []
     y_second = []
 
+    ## Según el shard borrado cuáles se necesitan para recuperar
     related_pos = {0: [1, 2, 0], 1: [0, 2, 0], 2: [0, 1, 0],
                 3: [4, 5, 1], 4: [3, 5, 1], 5: [3, 4, 1],
                 6: [7, 8, 2], 7: [6, 8, 2], 8: [6, 7, 2]}
@@ -106,6 +109,7 @@ def recover(n, k, subsets, GF, pos, readed_msg):
     y_first.extend(readed_msg[evaluate_in[0]])
     y_second.extend(readed_msg[evaluate_in[1]])
 
+    ## Evaluamos con los dos resultados que tenemos, sacamos los valores A y B y resolvemos
     for i, number in enumerate(y_first):
         y_data = GF([y_first[i], y_second[i]])
 
@@ -121,28 +125,31 @@ def get_message(n, k, subsets, GF):
     readed_msg, ereased_shards = get_shards("shards")
     coded_msg = []
     ## Conseguir el mensaje primero para poder recuperar los borrados
-    for i in range(0, 9, 1):
+    print("Recuperando borrados...")
+    for i in tqdm(range(0, 9, 1)):
         if i in ereased_shards:
             coded_msg.append([i])
         else:
             coded_msg.append(readed_msg[i])
     
     ## Recuperar y conseguir el mensaje general
-    for m in range(0, 9, 1):
+    print("Recuperando mensaje original...")
+    for m in tqdm(range(0, 9, 1)):
         if m in ereased_shards:
             full_msg.extend(recover(n, k, subsets, GF, m, readed_msg))
         else:
             full_msg.extend(coded_msg[m])
 
     ## Se leen los shards ordenados con lo que ahora hay que organizarlos para la decodificación
-    for k in range(int(len(full_msg)/n)):
+    print("Ordenando datos...")
+    for k in tqdm(range(int(len(full_msg)/n))):
         for i in range(0, len(full_msg), int(len(full_msg)/n)):
             ordered_msg.append(full_msg[i+k])
         
-    return ordered_msg
+    return ordered_msg, len(ereased_shards)
 
 
-## SHARDS
+## SHARDS FUNCTIONS
 def get_shards(directorio):
     shards = []
     ereased = []
@@ -191,6 +198,13 @@ def check_shards_folder(folder):
             print(f"No se pudo eliminar el archivo {file}: {e}")
 
 
+
+# ESCRIBIR MEDIDAS  
+def write_to_csv(data):
+    with open("data.csv", mode='a', newline='') as archivo_csv:
+        escritor_csv = csv.writer(archivo_csv)
+        escritor_csv.writerow(data)
+
 ### MAIN
 if __name__ == "__main__":
     p = 256 
@@ -207,7 +221,7 @@ if __name__ == "__main__":
     check_shards_folder("shards")
     readed = False
     while readed != True:
-        filename = input("Fichero a codificar: ").strip().lower()
+        filename = input("> Fichero a codificar: ").strip().lower()
         try:
             # Leer el fichero
             with open(filename, "rb") as file:
@@ -216,24 +230,39 @@ if __name__ == "__main__":
         except:
             print("No existe ese fichero.")
 
-    len_msg = len(message)
+    len_msg = len(message) # se necesita para que al recuperar no sobren bits que se pudieron añadir al codificar
+
     # Codificación
-    
+    start_t = time.time()
     encoded_msg, shards = encode(n, k, subsets, message, p, GF)
+    end_t = time.time()
     print("Fichero codificado.")
+    coded_t = end_t - start_t
+    print("Tiempo de codificación: %s" % (end_t - start_t))
     set_shards(shards)
 
-    #############################################
     print("Ahora puedes borrar shards.")
-    input("Pulsa cualquier letra para continuar con la decodificación: ").strip().lower()
-    # Decode
-    coded_msg = get_message(n, k, subsets, GF)
+    input("> Introduce cualquier letra para continuar con la decodificación: ").strip().lower()
+    # Recuperación del mensaje
+    start_t = time.time()
+    coded_msg, len_ereased = get_message(n, k, subsets, GF)
+    end_t = time.time()
+    recovered_t = end_t - start_t
+    print("Tiempo de recuperación: %s" % (end_t - start_t))
 
     # Decodificación
+    start_t = time.time()
     decoded_msg = decode(n, k, coded_msg, subsets, GF)
+    end_t = time.time()
+    decoded_t = end_t - start_t
     print("Fichero decodificado.")
+    print("Tiempo de decodificación: %s" % (end_t - start_t))
 
-    filename = input("Nombre que le quieres dar al fichero recuperado: ").strip().lower()
+    #['Longitud del fichero', 'Tiempo de Codificación', 'Tiempo de Recuperación', 'Tiempo de Decodificación', 'Cantidad de shards borrados'])
+    write_to_csv([len_msg, coded_t, recovered_t, decoded_t, len_ereased])
+
+    # Reubicación del nuevo fichero decodificado
+    filename = input("> Nombre que le quieres dar al fichero recuperado: ").strip().lower()
     
     folder = "decoded"
     if not os.path.exists(folder):
