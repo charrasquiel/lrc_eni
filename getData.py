@@ -20,10 +20,7 @@ if __name__ == "__main__":
     for filename in os.listdir("test"):
         for i in range(4):
             process = subprocess.Popen(['python', 'lrc.py'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
-
-            # Esperar por la línea de confirmación específica
-            confirmacion_esperada = "> Fichero a codificar: "
-            #wait_for_line(process, confirmacion_esperada)
+            
             process.stdin.write('test/'+filename + '\n')
             process.stdin.flush()
 
