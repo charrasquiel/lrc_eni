@@ -42,6 +42,7 @@ Presenta la siguiente distribución:
 - `lrc.py` el código principal.
 - `getData.py` el programa utilizado para testear el código principal.
 - `data.csv` datos recogidos tras la ejecución.
+- `getGraph.py` agrupa filas de los datos recogidos por longitud de fichero y número de *shards* borrados y representa el tiempo tardado para cada acción.
 
 
 ## Ejecución individual
@@ -80,6 +81,18 @@ Para ejecutarlo:
 ```bash
   python getData.py
 ```
+
+## Ejecución gráficas
+
+Finalmente, para la evaluación de las métricas recogidas se creó el fichero *getGraph.py* que graficará los datos recogidos. Para poder hacer uso de este programa debe existir el fichero *data.csv*, que se genera y almacena datos al efectuar cualquier ejecución de las dos mencionadas previamente. Se generarán tres gráficas separadas: una para el tiempo de codificación, otra para el tiempo de recuperación y otra para el tiempo de decodificación. Cada gráfica muestra cómo varía el tiempo según la cantidad de shards borrados para diferentes longitudes de fichero. Las gráficas se irán mostrando una por una. 
+
+Para ejecutarlo:
+
+```bash
+  python getGraph.py
+```
+
+
 
 ## Autor
 
