@@ -12,20 +12,22 @@ grouped_data = data.groupby(['Longitud del fichero', 'Cantidad de shards borrado
 
 # Agrupar por 'Longitud del fichero'
 grouped_len = grouped_data.groupby('Longitud del fichero')
+# Calcular el promedio del tiempo de codificación por tamaño del archivo
+average_coding_time = grouped_len['Tiempo de Codificación'].mean()
 
-# Crear una gráfica para cada valor de 'Longitud del fichero' según los datos de 'Tiempo de Codificación'
-for longitud, group in grouped_len:
-    plt.plot(group['Cantidad de shards borrados'], group['Tiempo de Codificación'], label=f'Longitud {longitud}')
+# Obtener los tamaños de los archivos
+file_sizes = average_coding_time.index
 
-# Añadir etiquetas y leyenda
-plt.xlabel('Cantidad de shards borrados')
-plt.ylabel('Tiempo de Codificación')
-plt.title('Tiempo de Codificación para diferentes longitudes de fichero')
-plt.legend()
+# Obtener el tiempo promedio de codificación
+coding_times = average_coding_time.values
+
+# Crear la gráfica
+plt.figure(figsize=(10, 6))
+plt.plot(file_sizes, coding_times, marker='o', color='r', linestyle='-')
+plt.title('Tiempo de Codificación vs Tamaño del Fichero')
+plt.xlabel('Tamaño del Fichero')
+plt.ylabel('Tiempo de Codificación (s)')
 plt.grid(True)
-plt.xticks(grouped_data['Cantidad de shards borrados'].unique())
-
-# Mostrar la gráfica
 plt.show()
 
 
@@ -35,7 +37,7 @@ for longitud, group in grouped_len:
 
 # Añadir etiquetas y leyenda
 plt.xlabel('Cantidad de shards borrados')
-plt.ylabel('Tiempo de Recuperación')
+plt.ylabel('Tiempo de Recuperación (s)')
 plt.title('Tiempo de Recuperación para diferentes longitudes de fichero')
 plt.legend()
 plt.grid(True)
@@ -50,7 +52,7 @@ for longitud, group in grouped_len:
 
 # Añadir etiquetas y leyenda
 plt.xlabel('Cantidad de shards borrados')
-plt.ylabel('Tiempo de Decodificación')
+plt.ylabel('Tiempo de Decodificación (s)')
 plt.title('Tiempo de Decodificación para diferentes longitudes de fichero')
 plt.legend()
 plt.grid(True)

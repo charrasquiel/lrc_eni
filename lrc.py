@@ -4,6 +4,7 @@ from tqdm import tqdm
 import time
 import os
 import csv
+import sys
 
 
 ## SUBCONJUNTOS
@@ -125,28 +126,33 @@ def get_message(n, k, subsets, GF):
     readed_msg, ereased_shards = get_shards("shards")
     coded_msg = []
     ## Conseguir el mensaje primero para poder recuperar los borrados
-    print("Recuperando borrados...")
-    for i in tqdm(range(0, 9, 1)):
-        if i in ereased_shards:
-            coded_msg.append([i])
-        else:
-            coded_msg.append(readed_msg[i])
-    
-    ## Recuperar y conseguir el mensaje general
-    print("Recuperando mensaje original...")
-    for m in tqdm(range(0, 9, 1)):
-        if m in ereased_shards:
-            full_msg.extend(recover(n, k, subsets, GF, m, readed_msg))
-        else:
-            full_msg.extend(coded_msg[m])
-
-    ## Se leen los shards ordenados con lo que ahora hay que organizarlos para la decodificación
-    print("Ordenando datos...")
-    for k in tqdm(range(int(len(full_msg)/n))):
-        for i in range(0, len(full_msg), int(len(full_msg)/n)):
-            ordered_msg.append(full_msg[i+k])
+    try:
+        print("Recuperando borrados...")
+        for i in tqdm(range(0, 9, 1)):
+            if i in ereased_shards:
+                coded_msg.append([i])
+            else:
+                coded_msg.append(readed_msg[i])
         
-    return ordered_msg, len(ereased_shards)
+        ## Recuperar y conseguir el mensaje general
+        print("Recuperando mensaje original...")
+        for m in tqdm(range(0, 9, 1)):
+            if m in ereased_shards:
+                full_msg.extend(recover(n, k, subsets, GF, m, readed_msg))
+            else:
+                full_msg.extend(coded_msg[m])
+
+        ## Se leen los shards ordenados con lo que ahora hay que organizarlos para la decodificación
+        print("Ordenando datos...")
+        for k in tqdm(range(int(len(full_msg)/n))):
+            for i in range(0, len(full_msg), int(len(full_msg)/n)):
+                ordered_msg.append(full_msg[i+k])
+            
+        return ordered_msg, len(ereased_shards)
+    
+    except:
+        print("Error al recuperar, probablemente se eliminaron ficheros de más...")
+        sys.exit() 
 
 
 ## SHARDS FUNCTIONS

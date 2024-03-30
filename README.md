@@ -28,8 +28,9 @@ proyecto/
 │   └── {filenameM}
 │
 ├── data.csv
-├── lrc.py
 ├── getData.py
+├── getGraph.py
+├── lrc.py
 └── README.md
 ````
 
@@ -59,7 +60,7 @@ Tras esto cargará los subconjuntos correspondientes para el código **[9,4]** d
 Debes escribir el fichero con la extensión correspondiente. Por ejemplo: 
 
 ```bash
-  > Fichero a codificar: ejemplo.pdf
+  > Fichero a codificar: path_to_ejemplo.pdf
 ```
 
 Tras esto realizará una parada donde se espera cualquier caracter para poder continuar. Esta parada servirá para poder simular el borrado de los *shards*. 
@@ -82,17 +83,15 @@ Para ejecutarlo:
   python getData.py
 ```
 
-## Ejecución gráficas
+## Ejecución para obtener gráficas
 
-Finalmente, para la evaluación de las métricas recogidas se creó el fichero *getGraph.py* que graficará los datos recogidos. Para poder hacer uso de este programa debe existir el fichero *data.csv*, que se genera y almacena datos al efectuar cualquier ejecución de las dos mencionadas previamente. Se generarán tres gráficas separadas: una para el tiempo de codificación, otra para el tiempo de recuperación y otra para el tiempo de decodificación. Cada gráfica muestra cómo varía el tiempo según la cantidad de shards borrados para diferentes longitudes de fichero. Las gráficas se irán mostrando una por una. 
+Finalmente, para la evaluación de las métricas recogidas se creó el fichero `getGraph.py` que graficará los datos recogidos. Para poder hacer uso de este programa debe existir el fichero *`data.csv`*, que se genera y almacena datos al efectuar cualquier ejecución de las dos mencionadas previamente. Se generarán tres gráficas separadas: una para el tiempo de codificación, otra para el tiempo de recuperación y otra para el tiempo de decodificación. Cada gráfica muestra cómo varía el tiempo según la cantidad de shards borrados para diferentes longitudes de fichero. Las gráficas se irán mostrando una por una. 
 
 Para ejecutarlo:
 
 ```bash
   python getGraph.py
 ```
-
-
 
 ## Autor
 
